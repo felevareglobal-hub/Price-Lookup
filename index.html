@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Price Lookup</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#14181f;--mut:#6b7280;--line:#e3e6ec;--pur:#475569;--sal:#0b6b3a;--acc:#2457d6;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1218;--card:#181c25;--tx:#e8ebf1;--mut:#939bab;--line:#2a303c;--pur:#aab4c5;--sal:#4ade80;--acc:#7aa2ff;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:18px;margin:0 0 12px}
+#q{width:100%;font-size:22px;padding:14px 16px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--tx);outline:none}
+#q:focus{border-color:var(--acc)}
+.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin:10px 2px 14px;font-size:13px;color:var(--mut)}
+.bar button,.bar label.btn{font:inherit;color:var(--acc);background:none;border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer}
+.bar input[type=file]{display:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.part{font-size:20px;font-weight:700;margin-bottom:10px}
+.sec{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:8px 0 6px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.c{border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-height:62px}
+.c .l{font-size:11px;color:var(--mut);display:block}
+.c b{font-size:20px;display:block}
+.c small{font-size:12px;color:var(--mut)}
+.pur b{color:var(--pur)} .sal b{color:var(--sal)}
+.na{color:var(--mut)}
+.extra{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;font-size:14px}
+.extra span{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:4px 12px}
+.extra em{font-style:normal;color:var(--mut);font-size:12px;margin-right:4px}
+.msg{text-align:center;color:var(--mut);padding:36px 0}
+body.nopur .purwrap{display:none}
+@media (max-width:420px){.c b{font-size:17px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Price Lookup</h1>
+  <input id="q" type="search" placeholder="Type Part No. e.g. CA-U2E" autocomplete="off" autocapitalize="characters" autofocus>
+  <div class="bar">
+    <span id="src"></span>
+    <button id="refresh" type="button">Refresh</button>
+    <label class="btn">Load Excel<input id="file" type="file" accept=".xlsx,.xls"></label>
+    <label><input id="showpur" type="checkbox" checked> Show purchase prices</label>
+  </div>
+  <div id="out"></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const FILE = 'price-list.xlsx';           // keep this file next to index.html; replace it to update prices
+const EMBED = [["CA-US9","450.00 (200)",null,null,510,null,null,648,621,612,1100],["CA-U2E","738.00 (50)","729.00 (10)","711.00 (15)","693.00 (20)",null,null,"810.00 (10)","801.00 (15)","783.00 (20)",1910],["CA-U2GE","1458.00(35-50)","1125.00 (10)","1107.00 (15)","1089.00 (20)",null,null,"1233.00 (10)","1215.00 (15)","1197.00 (20)",2950],["CA-U7H","1188.00(05)",null,"1197.00 (05)","1188.00 (10)",null,null,null,1314,1305,2300],["CA-U2X12","1206.00(05)","1197.00 (01)","1188.00 (05)","1170.00 (10)",null,null,"1314.00 (01)","1305.00 (05)","1287.00 (10)",2300],["CA-U3X5","1458.00(05)","1476.00 (01)","1467.00 (03)","1458.00 (05)",null,null,1621,"1611.00 (03)","1605.00 (05)",2850],["CA-U10H","2052.00(10)","1890.00 (01)","1881.00 (05)","1872.00 (10)",null,null,"2079.00 (01)","2061.00 (05)","2052.00 (10)",3250],["CA-U3GE","1611.00 (10)","1080.00 (01)","1071.00 (05)","1062.00 (10)",null,null,1188,"1179.00 (05)","1161.00 (10)",3750],["CA-U3VGA","3350.00 (05)",null,null,null,null,null,null,null,null,5990],["CA-U34H PLUS","1233.00 (10)","1080.00 (01)","1071.00 (05)","1062.00 (10)",null,null,"1188.00 (01)","1179.00 (05)","1161.00 (10)",2699],["CA-SS4H","1755 .00 (10)","1773.00 (01)","1764.00 (05)","1755.00 (10)",null,null,1953,1944,1935,3750],["CA-U3HE","1782.00 (25)","1656.00 (01)","1647.00 (05)","1638.00 (10)",null,null,"1827.00 (01)","1818.00 (05)","1800.00 (10)",3990],["CA-XWP","1854.00 (05)","1728.00 (01)","1710.00  (03)","1701.00 (05)",null,null,"1908.00 (01)","1881.00  (05)","1872.00 (10)",3990],["CA-PPTR1","2160.00 (10)","1872.00 (01)","1863.00 (03)","1854.00 (05)",null,null,"2061.00 (01)","2052.00 (03","2043.00 (05",4999],["CA-MDVGA","837.00 (100)","684.00 (20)","675.00 (30)","666.00 (40)",null,null,"756.00 (20)","747.00 (30)","738.00 (40)",1925],["CA-MDHDMI","837.00 (100)","693.00 (20)","684.00 (30)","675.00 (40)",null,null,"765.00 (20)","828.00 (30)","747.00 (40)",1925],["CA-ULM",850,"684.00 (05)","675.00 (10)","666.00 (15)",null,null,"756.00 (05)","747.00 (10)","738.00 (15)",1490],["CA-ULC1B",null,null,null,null,null,null,null,null,null,1410],["CA-ULCR(1.2)","475.00(10)","486.00 (05)","477.00 (10)","460.00 (20)",null,null,"558.00 (05)","549.00 (10)","522.00 (20)",1410],["CA-ULCB(1.2)","475.00(10)","486.00 (05)","477.00 (10)","460.00 (20)",null,null,"558.00 (05)","549.00 (10)","522.00 (20)",1410],["CA-ULCS(2.0)","700.00 (10)","612.00 (05)","603.00 (10)","594.00 (20)",null,850,"702.00 (05)","693.00 (10)","684.00 (20)",1800],["CA-ULCG(2.0)","700.00 (10)","612.00 (05)","603.00 (10)","594.00 (20)",null,null,"702.00 (05)","693.00 (10)","684.00 (20)",1800],["CA-ULCR(2.0)","700.00 (10)","612.00 (05)","603.00 (10)","594.00 (20)",null,null,"702.00 (05)","693.00 (10)","684.00 (20)",1800],["CA-ULCB(2.0)","700.00 (10)","612.00 (05)","603.00 (10)","594.00 (20)",null,null,"702.00 (05)","693.00 (10)","684.00 (20)",1800],["CA-ULCG(3M)","675.00(10)","711.00 (05)","702.00 (10)","693.00 (20)",null,null,"819.00 (05)","801.00 (10)","792.00 (20)",2100],["CA-ULCS(3M)","675.00(10)","711.00 (05)","702.00 (10)","693.00 (20)",null,null,"819.00 (05)","801.00 (10)","792.00 (20)",2100],["CA-UK200",1350,null,null,1484,null,null,null,null,1656,2400],["CA-UK400",2988,null,null,3996,null,null,null,null,4392,10250],["CA-UK800",8604,null,null,10908,null,null,null,null,11997,14990],["CA-UK1600",13608,null,null,15255,null,null,null,null,16785,23200],["CA-KE100",10008,null,null,13752,null,null,null,null,15120,19990],["CA-KC180",441,null,null,657,null,null,null,null,720,850],["CA-KC300",630,null,null,855,null,null,null,null,945,1300],["CA-KC500",990,null,null,999,null,null,null,null,1098,1990],["CA-HDK200",4518,null,null,4653,null,null,null,null,5112,10650],["CA-UHDK220",null,null,null,5760,null,null,null,null,6336,13500],["CA-UHDK440",null,null,null,7515,null,null,null,null,8262,17700],["CA-UHDK800",null,null,null,31680,null,null,null,null,34848,74600],["CA-UHDK1600",null,null,null,49500,null,null,null,null,54450,116500],["CA-HDVGA","810.00(50)","737.00 (10)","720.00 (15)","711.00 (25)",null,null,"810.00 (10)","792.00 (15)","783.00 (25)",1850],["CA-HVCAB",null,"1008.00 (01)","891.00 (05)","882.00 (10)",null,null,1107,981,972,2050],["CA-VHDMI","1404.00(05)","1134.00 (01)","1125.00 (10)","1116.00 (15)",null,null,"1242.00 (01)","1233.00 (10)","1224.00 (15)",2990],["CA-HVD","837.00(50)","666.00 (01)","657.00 (05)","648.00 (10)",null,null,765,756,738,1850],["CA-HDP4K",null,"1386.00 (01)","1377.00 (03)","1368.00 (05)",null,null,1521,1512,1503,3799],["CA-C3HDMI","1881.00 (50)","1350.00 (01)","1341.00 (03)","1332.00 (05)",null,null,1485,1476,1467,4500],["CA-C3VGA","1467.00 (50)","1197.00 (01)","1188.00 (05)","1170.00 (10)",null,null,1314,1305,1287,3500],["CA-C2C (1M)",null,"576.00 (01)","567.00 (05)","558.00 (10)",null,null,666,657,648,2150],["CA-C2C (1.2M)",null,"504.00 (01)","495.00 (05)","486.00 (10)",null,null,594,585,576,1199],["CA-C2C (2M)","1026.00(15)","522.00 (01)","513.00 (05)","504.00 (10)",null,693,612,603,594,1499],["CA-C3GE","1431.00(50)",1026,1017,1008,null,null,1134,1116,1107,3250],["CA-C3AM","441.00 (25)",513,"504.00 (05)","495.00 (10)",null,null,603,594,585,1100],["CA-C3AM (2M)",null,549,540,531,null,null,648,639,630,null],["CA-C3AM (3M)",null,576,567,558,null,null,666,657,648,null],["CA-C3AF","405.00 (50)","351.00 (10)","342.00 (20)","333.00 (30)",null,null,"441.00 (10)","432.00 (20)","423.00 (30)",1050],["CA-CHM","2511.00 (25)","1782.00 (05)","1773.00 (10)","1764.00 (15)",null,null,"1944.00 (05)","1935.00 (10)","1926.00 (15)",5490],["CA-CVM","2511.00 (25)","1683.00 (05)","1674.00 (10)","1665.00 (15)",null,null,"1836.00 (05)","1827.00 (10)","1818.00 (15)",5490],["CA-C3HE","2151.00(50)","1782.00 (05)","1773.00 (10)","1764.00 (05)",null,null,"1944.00 (05)","1935.00 (10)","1926.00 (15)",4950],["CA-C4H","1611.00 (50)","1080.00 (05)","1071.00 (10)","1062.00 (15)",null,null,"1188.00 (05)","1179.00 (10)","1161.00 (15)",2850],["CA-C7H","3258.00 (05)","2781.00 (05)","2772.00 (10)","2763.00 (15)",null,null,"3033.00 (05)","3024.00 (10)","3006.00 (15)",6999],["CA-CHDC","1611.00 (15)","1134.00 (10)","1125.00 (15)","1116.00 (20)",null,null,"1242.00 (10)","1233.00 (15)","1224.00 (15)",3950],["CA-CS9","504.00(15)","648.00 (10)","639.00 (15)","630.00 (20)",null,null,"756.00 (10)","747.00 (15)","630.00 (20)",1625],["CA-C4KHD","927.00 (15)",882,873,864,null,null,882,873,864,1999],["CA-CVFHD","927.00 (15)",882,873,864,null,null,882,873,864,1999],["CA-CMICRO","576.00 (10)",333,324,315,null,null,333,324,315,1100],["CA-CMICROB","477.00 (10)",405,396,387,null,null,405,396,387,1050],["CA-C5MINIB","477.00 (10)",324,315,306,null,null,324,315,306,1050],["CA-CU3BM","576.00 (10)",405,396,387,null,null,405,396,387,1100],["CA-CVHD","1800.00 (10)",1584,1575,1566,null,null,1584,1575,1566,3760],["CA-CDPC","1425.00(10)",1107,"1098.00 (05)","1080(10)",null,null,1224,1215,1188,3999],["CA-C2DP","2547.00 (10)",2394,2376,2367,null,null,2394,2376,2367,5999],["CA-C2HD","2115.00 (10)",2007,1998,1980,null,null,2007,1998,1980,4950],["CA-UCF","351.00 (10)",369,"360.00 (10)","351.00 (20)",null,475,459,450,441,825],["CA-CAD","378.00 (10)",396,"387.00 (05)","378.00 (10)",null,null,486,477,369,890],["CA-UCDP","900.00 (10)",909,900,891,null,null,1008,999,981,2125],["CA-U4C2C 0.8M",null,1485,1476,1467,null,null,1638,1629,1611,null],["CA-U4C2C 1.8M","1602.00 (10)",1971,1962,1953,null,null,2169,2160,2151,3749],["CA-UC4H",null,1422,1404,1395,null,null,null,null,null,3250],["CA-C25GE",null,1682,1674,1665,null,null,null,null,null,3999],["CA-UC10G",null,702,675,666,null,756,null,null,null,1550],["CA-CMDP",null,936,918,909,null,null,null,null,null,2399],["CA-CC140",null,null,null,null,null,null,null,null,null,1650],["CA-CXTDS","3483.00(20)",3213,3186,3177,null,3825,3213,3186,3177,8250],["CA-CU3HG","3006.00 (20)",null,2637,2628,null,null,null,2637,2628,6750],["CA-CU3HVG","4257.00 (10)",null,3537,3522,null,null,null,3537,3522,9490],["CA-C3MDS","2655.00 (10)",null,2394,2385,null,null,null,2394,2385,6999],["CA-DUCDG","3258.00 (10)",null,null,null,null,null,null,null,null,7650],["CA-C3PDS",9702,8307,7776,7623,null,null,8307,7776,7623,23900],["CA-WCHP","2610.00 (10)",2403,2394,2385,null,null,2403,2394,2385,6999],["CA-DDS","5850.00(05)",5121,5112,5103,null,null,5121,5112,5103,14999],["CA-KBDS","6750.00 (05)",5724,5715,5706,null,null,5724,5715,5706,14900],["CA-CDPRO",11630,9621,9612,9603,null,null,9621,9612,9603,27500],["CA-IPDS","2763.00 (10)",2331,2322,2313,null,null,2331,2322,2313,6499],["CA-2CHD2","4257.00 (10)",3780,3771,3762,null,null,3780,3771,3762,9499],["CA-2HDVG","6759.00 (10)",5787,5778,5760,null,null,5787,5778,5760,null],["CA-2HDQD",null,6705,6993,6984,null,null,6705,6993,6984,null],["CA-CLMFT",null,3024,3015,3006,null,null,3024,3015,3006,null],["CA-C4VIEW",null,null,null,null,null,null,null,null,null,null],["CA-MSD456","2457.00 (10)",1980,1971,1962,null,null,1980,1971,1962,null],["CA-UCMSD","2754.00 (10)",2628,2610,2601,null,null,2628,2610,2601,null],["CA-C8KDP","1260.00 (10)",null,null,null,null,null,null,null,null,null],["CA-C8KDPC","1421.00 (10)",null,null,null,null,null,null,null,null,null],["CA-C8KHD","1971.00 (10)",null,null,null,null,null,null,null,null,null],["CA-C8KHDC","2106.00 (10)",null,null,null,null,null,null,null,null,null],["CA-HDCAB2","560.00(15)",522,513,504,null,null,522,513,504,null],["CA-HDCAB5","1404.00(10)",1233,1224,1215,null,null,1233,1224,1215,null],["CA-HDCAB10","1404.00(10)",null,null,null,null,null,null,null,null,null],["CA-HDCAB15","2304.00 (10)","2250.00 (5)","2241.00 (10)","2232.00 (15)",null,null,"2250.00 (5)","2241.00 (10)","2232.00 (15)",null],["CA-HDCAB20","2997.00(10)",null,null,null,null,null,null,null,null,null],["CA-HDCAB30","4860.00 (05)",null,null,null,null,null,null,null,null,null],["CA-HDCAB50","5904.00 (05)",null,null,null,null,null,null,null,null,null],["CA-HDCAB70",8620,8532,8523,8514,null,null,8532,8523,8514,null],["CA-HDCAB100",10250,null,null,null,null,null,null,null,null,null],["CA-HDC2M","369.00 (10)",342,333,324,null,null,342,333,324,null],["CA-HDC3M","405.00(10)",null,null,null,null,null,null,null,null,null],["CA-HDC5M",null,null,null,null,null,null,null,null,null,null],["CA-8KHDC1.8M","657.00 (10)",657,648,639,null,724,657,648,639,null],["CA-8KHDC3M","729.00 (10)",null,null,null,null,797,null,null,null,null],["CA-AOC10",null,3582,3573,3564,null,null,3582,3573,3564,null],["CA-AOC15",null,3906,3897,3888,null,null,3906,3897,3888,null],["CA-AOC20",null,4248,4230,4221,null,null,4248,4230,4221,null],["CA-UMICROBlue","210.00(20)",216,207,198,null,null,216,207,198,null],["CA-UMICRORed","210.00(20)",216,207,198,null,null,216,207,198,null],["CA-DUCC","620.00(10)",null,null,null,null,null,null,null,null,null],["CA-DUWC","990.00 (10)",882,873,864,null,null,882,873,864,null],["CA-DUCWC","882.00 (10)",837,828,810,null,909,837,828,810,null],["CA-6UCWC","1953.00 (10)",1935,1926,1917,null,2135,1935,1926,1917,null],["CA-UTA (30W)","1260.00 (5)",null,null,null,null,1460,null,null,null,null],["CA-UTA GREEN","1152.00 (10)",null,null,null,null,null,null,null,null,null],["CA-2HDS","828.00 (05)",null,null,null,null,null,null,null,null,null],["CA-5HDS PLUS","2196.00 (05)",2484,2475,2466,null,null,2484,2475,2466,null],["CA-4HDSP PLUS","3492.00 (05)",3717,3708,3699,null,null,3717,3708,3699,null],["CA-8HDSP","7506.00 (05)",7344,7335,7326,null,null,7344,7335,7326,null],["CA-HDX50",null,3285,3276,3267,null,null,3285,3276,3267,null],["CA-HDX120",null,null,null,null,null,null,null,null,null,null],["CA-2VSP ","1377.00 (05)",null,null,null,null,null,null,null,null,null],["CA-4VSP","1800.00 (10)",null,null,null,null,null,null,null,null,null],["CA-U3TDS","5157.00 (10)",null,null,null,null,null,null,null,null,null],["CA-WTR150",950,504,null,null,null,null,504,null,null,null],["CA-M150",1140,504,null,null,null,null,504,null,null,null],["CA-M300",1335,504,null,null,null,null,504,null,null,null],["CA-DPVGA","837.00 (50)",702,693,675,null,null,702,693,675,null],["CA-DPHDMI","837.00 (50)","774.00 (10)","765.00 (20)","756.00 (30)",null,null,792,774,765,null],["CA-DPCAB","891.00 (15)",585,576,567,null,null,585,576,567,null],["CA-DPHDC","1161.00 (15)",null,null,null,null,null,null,null,null,null],["CA-GS24",6003,2997,null,null,null,null,2997,null,null,null],["CA-T3DP","5256.00 (10)",4545,4527,4513,null,null,4545,4527,4513,null],["CA-T3HD","5958.00 (10)",5013,5004,4995,null,null,5013,5004,4995,null],["CA-T3HDD",13950,12033,12015,12006,null,null,12033,12015,12006,null],["CA-T3DPD",13950,12033,12015,12006,null,null,12033,12015,12006,null],["CA-CCLK","750.00 (>15)",null,null,null,null,null,null,null,null,null],["CA-NWCLK","1152.00 (10)",1152,1143,1134,null,null,1152,1143,1134,null],["CA-KWCLK","1206.00 (10)",1206,1188,1170,null,null,1206,1188,1170,null],["Master Key","594.00 (05)",288,270,261,null,null,288,270,261,null],["CA-CT568",711,null,null,null,null,null,null,null,null,null],["CA-FCP1",153,null,null,null,null,null,null,null,null,null],["CA-PC61M",90,null,null,null,null,null,null,null,null,null],["CA-PC62M",110,null,null,null,null,null,null,null,null,null],["CA-PC63M",null,null,null,null,null,null,null,null,null,null],["CA-PC624",2160,1782,1773,1764,null,null,1782,1773,1764,null],["CA-PC648",4527,4014,4005,3996,null,null,4014,4005,3996,null],["CA-NCT",1080,null,null,null,null,null,null,null,null,null],["CA-CPA61",2529,2286,2277,2268,null,2700,2286,2277,2268,null],["CA-CPA87",2736,2430,2421,2412,null,null,2430,2421,2412,null],["CA-3SPS","1881.00 (6-10)",1728,1710,1701,null,null,1728,1710,1701,null],["CA-4SPS","1053.00 (>10)",1008,990,981,null,null,1008,990,981,null],["CA-AUXC","216.00 (10)",null,null,null,null,null,null,null,null,null],["CA-CAUC","1062.00 (05)",999,972,963,null,null,999,972,963,null],["CA-AUD","864.00 (05)",null,null,null,null,null,null,null,null,null],["CA-AUSP","396.00 (10)",null,null,null,null,null,null,null,null,null]];                    // built-in snapshot, used only if the file cannot be loaded
+const EMBED_LABEL = 'Built-in list: Revised Price List - Oct 2026';
+const $ = id => document.getElementById(id);
+let rows = [];
+
+const norm = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function cell(v){
+  if (v == null || String(v).trim() === '') return null;
+  if (typeof v === 'number') return {p: v, q: ''};
+  const m = String(v).match(/^\s*([\d,]+(?:\.\d+)?)\s*(?:\(\s*([^)]*?)\s*\)?)?\s*$/);
+  if (!m) return {p: null, q: String(v)};
+  let q = m[2] || '';
+  if (/^\d+$/.test(q)) q = String(+q);
+  return {p: parseFloat(m[1].replace(/,/g, '')), q};
+}
+function setRows(raw){
+  rows = raw.filter(r => r && r[0] != null && String(r[0]).trim() !== '').map(r => ({
+    part: String(r[0]).trim(), key: norm(r[0]),
+    old: cell(r[1]), pur: [2,3,4].map(i => cell(r[i])),
+    sal: [7,8,9].map(i => cell(r[i])), mrp: cell(r[10])
+  }));
+}
+function money(c){
+  if (!c) return '<span class="na">&mdash;</span>';
+  if (c.p == null) return esc(c.q);
+  return '&#8377;' + c.p.toLocaleString('en-IN', {maximumFractionDigits: 2});
+}
+const box = (c, i) => `<div class="c"><span class="l">${i}</span><b>${money(c)}</b>${c && c.p != null && c.q ? `<small>Qty ${esc(c.q)}</small>` : ''}</div>`;
+const chip = (name, c) => c ? `<span><em>${name}</em>${money(c)}${c.p != null && c.q ? ` <small>(${esc(c.q)})</small>` : ''}</span>` : '';
+
+function render(){
+  const q = norm($('q').value), out = $('out');
+  if (!q){ out.innerHTML = `<div class="msg">${rows.length} parts loaded. Start typing a Part No.</div>`; return; }
+  const m = rows.filter(r => r.key.includes(q))
+    .sort((a, b) => (b.key === q) - (a.key === q) || b.key.startsWith(q) - a.key.startsWith(q) || a.part.localeCompare(b.part))
+    .slice(0, 30);
+  if (!m.length){ out.innerHTML = '<div class="msg">No matching Part No.</div>'; return; }
+  out.innerHTML = m.map(r => `<div class="card"><div class="part">${esc(r.part)}</div>
+    <div class="purwrap"><div class="sec">Purchase</div><div class="grid pur">${r.pur.map((c, i) => box(c, i + 1)).join('')}</div></div>
+    <div class="sec">Sales</div><div class="grid sal">${r.sal.map((c, i) => box(c, i + 1)).join('')}</div>
+    <div class="extra">${chip('MRP', r.mrp)}<span class="purwrap"${''}>${r.old ? `<em>Current / Old</em>${money(r.old)} <small>${r.old.p != null && r.old.q ? '(' + esc(r.old.q) + ')' : ''}</small>` : ''}</span></div></div>`).join('');
+}
+
+function parseBuf(buf){
+  const wb = XLSX.read(buf, {type: 'array'});
+  const raw = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, raw: true, defval: null}).slice(2);
+  setRows(raw);
+  return raw;
+}
+function setSrc(t){ $('src').textContent = t; }
+
+async function load(){
+  let ok = false;
+  if (typeof XLSX !== 'undefined'){
+    try{
+      const r = await fetch(FILE + '?t=' + Date.now(), {cache: 'no-store'});
+      if (r.ok){
+        parseBuf(await r.arrayBuffer());
+        const lm = r.headers.get('Last-Modified');
+        setSrc('Live from ' + FILE + (lm ? ' \u00b7 updated ' + new Date(lm).toLocaleString('en-IN') : ''));
+        ok = true;
+      }
+    }catch(e){}
+  }
+  if (!ok){
+    try{
+      const s = JSON.parse(localStorage.getItem('pricelist') || 'null');
+      if (s){ setRows(s.raw); setSrc('Loaded Excel: ' + s.name + ' \u00b7 ' + s.at); ok = true; }
+    }catch(e){}
+  }
+  if (!ok){ setRows(EMBED); setSrc(EMBED_LABEL); }
+  render();
+}
+
+$('q').addEventListener('input', render);
+$('refresh').addEventListener('click', load);
+$('showpur').addEventListener('change', e => document.body.classList.toggle('nopur', !e.target.checked));
+$('file').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  if (typeof XLSX === 'undefined'){ alert('Excel reader could not load. Check your internet connection and try again.'); return; }
+  try{
+    const raw = parseBuf(await f.arrayBuffer());
+    const at = new Date().toLocaleString('en-IN');
+    try{ localStorage.setItem('pricelist', JSON.stringify({raw, name: f.name, at})); }catch(err){}
+    setSrc('Loaded Excel: ' + f.name + ' \u00b7 ' + at);
+    render();
+  }catch(err){ alert('Could not read this file.'); }
+  e.target.value = '';
+});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+load();
+</script>
+</body>
+</html>
